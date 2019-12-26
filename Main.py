@@ -47,7 +47,7 @@ def start_screen():
         if hero.rect.x < SIZE[0] // 3:
             hero.update(2, 0, check_collide=False)
         elif shoot:
-            Bullet(hero.rect.x, hero.rect.y)
+            Bullet(hero.rect.x, hero.rect.y, 'bullet2.png')
             shoot = False
         if bullet_update:
             for elem in bullets_group:
@@ -85,7 +85,7 @@ def start_screen():
 
 
 def create_particles(position):
-    particle_count = 15
+    particle_count = 3
     numbers = range(-5, 6)
     for _ in range(particle_count):
         Particle(position, random.choice(numbers), random.choice(numbers))
@@ -96,6 +96,7 @@ levels_group = pygame.sprite.Group()
 bullets_group = pygame.sprite.Group()
 birds_group = pygame.sprite.Group()
 stars_group = pygame.sprite.Group()
+monster_group = pygame.sprite.Group()
 
 
 class Hero(pygame.sprite.Sprite):
@@ -140,18 +141,49 @@ class Level(pygame.sprite.Sprite):
         self.rect.bottom = SIZE[1]
 
 
+class Monster(pygame.sprite.Sprite):
+    def __init__(self, sheet, columns, rows, x, y):
+        super().__init__(monster_group)
+        self.frames = []
+        self.cut_sheet(sheet, columns, rows)
+        self.cur_frame = 0
+        self.image = self.frames[self.cur_frame]
+        self.rect = self.rect.move(x, y)
+
+    def cut_sheet(self, sheet, columns, rows):
+        self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
+                                sheet.get_height() // rows)
+        for j in range(rows):
+            for i in range(columns):
+                frame_location = (self.rect.w * i, self.rect.h * j)
+                self.frames.append(sheet.subsurface(pygame.Rect(
+                    frame_location, self.rect.size)))
+
+    def update(self):
+        self.cur_frame = (self.cur_frame + 1) % len(self.frames)
+        self.image = self.frames[self.cur_frame]
+
+
 class Bullet(pygame.sprite.Sprite):
     screen_rect = (0, 0, SIZE[0], SIZE[1])
 
-    def __init__(self, x, y):
+    def __init__(self, x, y, image):
         super().__init__(bullets_group)
-        self.image = load_image('bullet.png')
+        self.image = load_image(image, color_key=-1)
         self.rect = self.image.get_rect()
-        self.rect.x = x + (hero.rect.width // 4) * 3
+        self.direction = hero_direction
+        if self.direction == 'right':
+            self.rect.x = x + (hero.rect.width // 4) * 3
+        else:
+            self.rect.x = x
+            self.image = pygame.transform.flip(self.image, True, False)
         self.rect.y = y + hero.rect.height // 3
 
     def update(self, x=15, y=0):
-        self.rect.x += x
+        if self.direction == 'right':
+            self.rect.x += x
+        else:
+            self.rect.x -= x
         self.rect.y += y
         if not self.rect.colliderect(Bullet.screen_rect):
             self.kill()
@@ -207,15 +239,15 @@ class Particle(pygame.sprite.Sprite):
 
 
 level = Level('first')
+hero_direction = 'right'
 start_y = level.rect.y - level.rect.height - 15
 hero = Hero(load_image("hero.png"), 6, 1, 30, 300)
-
 clock = pygame.time.Clock()
 FPS = 50
 running = True
 start_screen_show = True
 x, y = 0, 0
-
+dragon = Monster(load_image("dragon.png"), 8, 2, 400, 268)
 dy = 0
 
 while running:
@@ -230,8 +262,16 @@ while running:
             running = False
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_RIGHT:
+                hero_direction = 'right'
                 x, y = 5, 0
+                x_d, y_d = hero.rect.x, hero.rect.y
+                hero_group = pygame.sprite.Group()
+                hero = Hero(load_image("hero.png"), 6, 1, x_d, y_d)
             if event.key == pygame.K_LEFT:
+                hero_direction = 'left'
+                x_d, y_d = hero.rect.x, hero.rect.y
+                hero_group = pygame.sprite.Group()
+                hero = Hero(load_image("hero_left.png"), 6, 1, x_d, y_d)
                 if dy == 5:
                     x, y = -3, 0
                 else:
@@ -241,7 +281,7 @@ while running:
                     hero.update(0, -95)
                     dy = 5
             if event.key == pygame.K_SPACE:
-                Bullet(hero.rect.x, hero.rect.y)
+                Bullet(hero.rect.x, hero.rect.y, 'bullet.png')
         if event.type == pygame.KEYUP:
             if event.key in (pygame.K_RIGHT, pygame.K_LEFT, pygame.K_UP, pygame.K_DOWN):
                 x, y = 0, 0
@@ -257,8 +297,10 @@ while running:
     hero_group.draw(screen)
     levels_group.draw(screen)
     bullets_group.draw(screen)
-
+    monster_group.draw(screen)
     for bullet in bullets_group:
         bullet.update()
+    for monster in monster_group:
+        monster.update()
     clock.tick(FPS)
     pygame.display.flip()

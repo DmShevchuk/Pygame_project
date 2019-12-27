@@ -6,6 +6,7 @@ pygame.init()
 SIZE = [600, 400]
 screen = pygame.display.set_mode(SIZE)
 BLACK = pygame.Color('black')
+bullets_sound = pygame.mixer.Sound('data/bullet.wav')
 screen.fill(BLACK)
 
 
@@ -29,7 +30,7 @@ def load_image(name, color_key=None):
 def start_screen():
     fon = pygame.transform.scale(load_image('fon2.jpg'), (SIZE[0], SIZE[1]))
     screen.blit(fon, (0, 0))
-    title = ['T', 'h', 'e', 'g', 'a', 'm', 'e']
+    title = ['T', 'h', 'e', 'b', 'e', 's', 't', 'g', 'a', 'm', 'e']
     shoot = True
     bullet_update = True
     FPS = 60
@@ -96,18 +97,19 @@ levels_group = pygame.sprite.Group()
 bullets_group = pygame.sprite.Group()
 birds_group = pygame.sprite.Group()
 stars_group = pygame.sprite.Group()
-monster_group = pygame.sprite.Group()
+monsters_group = pygame.sprite.Group()
 
 
 class Hero(pygame.sprite.Sprite):
-    def __init__(self, sheet, columns, rows, x, y):
+    def __init__(self, sheet, columns, rows, x, y, health=5):
         super().__init__(hero_group)
         self.frames = []
         self.cut_sheet(sheet, columns, rows)
         self.cur_frame = 0
         self.image = self.frames[self.cur_frame]
         self.rect = self.rect.move(x, y)
-        self.health = 5
+        self.health = health
+        self.collide_with_monster_counter = 0
 
     def cut_sheet(self, sheet, columns, rows):
         self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
@@ -128,6 +130,14 @@ class Hero(pygame.sprite.Sprite):
         else:
             self.rect.x -= x
             self.rect.y -= y
+        if len(monsters_group) > 0 and pygame.sprite.collide_mask(self, dragon):
+            self.health -= 1
+            if self.health < 0:
+                global hero, hero_group
+                self.kill()
+                hero = Hero(load_image("hero.png"), 6, 1, 30, start_y)
+                hero_group = pygame.sprite.Group()
+                dragon.health = 5
 
 
 class Level(pygame.sprite.Sprite):
@@ -143,12 +153,13 @@ class Level(pygame.sprite.Sprite):
 
 class Monster(pygame.sprite.Sprite):
     def __init__(self, sheet, columns, rows, x, y):
-        super().__init__(monster_group)
+        super().__init__(monsters_group)
         self.frames = []
         self.cut_sheet(sheet, columns, rows)
         self.cur_frame = 0
         self.image = self.frames[self.cur_frame]
         self.rect = self.rect.move(x, y)
+        self.health = 5
 
     def cut_sheet(self, sheet, columns, rows):
         self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
@@ -185,9 +196,12 @@ class Bullet(pygame.sprite.Sprite):
         else:
             self.rect.x -= x
         self.rect.y += y
-        if not self.rect.colliderect(Bullet.screen_rect):
+        if not self.rect.colliderect(Bullet.screen_rect) or (len(monsters_group)> 0 and
+            pygame.sprite.collide_mask(self, dragon)):
             self.kill()
-
+            dragon.health -= 1
+            if dragon.health < 0:
+                dragon.kill()
 
 class Bird(pygame.sprite.Sprite):
     def __init__(self, sheet, columns, rows, x, y):
@@ -240,14 +254,19 @@ class Particle(pygame.sprite.Sprite):
 
 level = Level('first')
 hero_direction = 'right'
-start_y = level.rect.y - level.rect.height - 15
 hero = Hero(load_image("hero.png"), 6, 1, 30, 300)
+dragon = Monster(load_image("dragon.png"), 8, 2, 400, 270)
+
+health_image = load_image('health.png', color_key=-1)
+
+
+
+start_y = level.rect.y - level.rect.height - 15
 clock = pygame.time.Clock()
 FPS = 50
 running = True
 start_screen_show = True
 x, y = 0, 0
-dragon = Monster(load_image("dragon.png"), 8, 2, 400, 268)
 dy = 0
 
 while running:
@@ -266,21 +285,22 @@ while running:
                 x, y = 5, 0
                 x_d, y_d = hero.rect.x, hero.rect.y
                 hero_group = pygame.sprite.Group()
-                hero = Hero(load_image("hero.png"), 6, 1, x_d, y_d)
+                hero = Hero(load_image("hero.png"), 6, 1, x_d, y_d, health=hero.health)
             if event.key == pygame.K_LEFT:
                 hero_direction = 'left'
                 x_d, y_d = hero.rect.x, hero.rect.y
                 hero_group = pygame.sprite.Group()
-                hero = Hero(load_image("hero_left.png"), 6, 1, x_d, y_d)
+                hero = Hero(load_image("hero_left.png"), 6, 1, x_d, y_d, health=hero.health)
                 if dy == 5:
                     x, y = -3, 0
                 else:
                     x, y = -5, 0
             if event.key == pygame.K_UP:
                 if dy != 5:
-                    hero.update(0, -95)
+                    hero.update(0, -100)
                     dy = 5
             if event.key == pygame.K_SPACE:
+                bullets_sound.play()
                 Bullet(hero.rect.x, hero.rect.y, 'bullet.png')
         if event.type == pygame.KEYUP:
             if event.key in (pygame.K_RIGHT, pygame.K_LEFT, pygame.K_UP, pygame.K_DOWN):
@@ -297,10 +317,10 @@ while running:
     hero_group.draw(screen)
     levels_group.draw(screen)
     bullets_group.draw(screen)
-    monster_group.draw(screen)
-    for bullet in bullets_group:
-        bullet.update()
-    for monster in monster_group:
-        monster.update()
+    monsters_group.draw(screen)
+    bullets_group.update()
+    monsters_group.update()
+    for i in range(hero.health):
+        screen.blit(health_image, (420 + i * 35, 10))
     clock.tick(FPS)
     pygame.display.flip()

@@ -98,6 +98,7 @@ bullets_group = pygame.sprite.Group()
 birds_group = pygame.sprite.Group()
 stars_group = pygame.sprite.Group()
 monsters_group = pygame.sprite.Group()
+health_monsters_group = pygame.sprite.Group()
 
 
 class Hero(pygame.sprite.Sprite):
@@ -132,12 +133,14 @@ class Hero(pygame.sprite.Sprite):
             self.rect.y -= y
         if len(monsters_group) > 0 and pygame.sprite.collide_mask(self, dragon):
             self.health -= 1
+            self.rect.x -= 40
             if self.health < 0:
                 global hero, hero_group
                 self.kill()
-                hero = Hero(load_image("hero.png"), 6, 1, 30, start_y)
                 hero_group = pygame.sprite.Group()
+                hero = Hero(load_image("hero.png"), 6, 1, 30, start_y)
                 dragon.health = 5
+                dragon_health.update(dragon)
 
 
 class Level(pygame.sprite.Sprite):
@@ -175,6 +178,24 @@ class Monster(pygame.sprite.Sprite):
         self.image = self.frames[self.cur_frame]
 
 
+class Health_monster(pygame.sprite.Sprite):
+    def __init__(self, monster):
+        super().__init__(health_monsters_group)
+        self.image = pygame.Surface([52, 10])
+        pygame.draw.rect(self.image, (255, 255, 255), (0, 0, 52, 10), 1)
+        pygame.draw.rect(self.image, pygame.color.Color('red'), (1, 1, 50, 8), 0)
+        self.rect = self.image.get_rect()
+        self.rect.x = monster.rect.x + 18
+        self.rect.y = monster.rect.y - 10
+        self.heatlh = monster.health
+
+    def update(self, monster):
+        self.rect.x = monster.rect.x + 18
+        self.rect.y = monster.rect.y - 10
+        pygame.draw.rect(self.image, pygame.color.Color('black'), (1, 1, 50, 8), 0)
+        pygame.draw.rect(self.image, pygame.color.Color('red'), (1, 1, monster.health * 10, 8), 0)
+
+
 class Bullet(pygame.sprite.Sprite):
     screen_rect = (0, 0, SIZE[0], SIZE[1])
 
@@ -196,12 +217,16 @@ class Bullet(pygame.sprite.Sprite):
         else:
             self.rect.x -= x
         self.rect.y += y
-        if not self.rect.colliderect(Bullet.screen_rect) or (len(monsters_group)> 0 and
-            pygame.sprite.collide_mask(self, dragon)):
+        if not self.rect.colliderect(Bullet.screen_rect):
+            self.kill()
+        if len(monsters_group) > 0 and pygame.sprite.collide_mask(self, dragon):
             self.kill()
             dragon.health -= 1
-            if dragon.health < 0:
+            dragon_health.update(dragon)
+            if dragon.health == 0:
                 dragon.kill()
+                dragon_health.kill()
+
 
 class Bird(pygame.sprite.Sprite):
     def __init__(self, sheet, columns, rows, x, y):
@@ -256,11 +281,8 @@ level = Level('first')
 hero_direction = 'right'
 hero = Hero(load_image("hero.png"), 6, 1, 30, 300)
 dragon = Monster(load_image("dragon.png"), 8, 2, 400, 270)
-
+dragon_health = Health_monster(dragon)
 health_image = load_image('health.png', color_key=-1)
-
-
-
 start_y = level.rect.y - level.rect.height - 15
 clock = pygame.time.Clock()
 FPS = 50
@@ -317,6 +339,7 @@ while running:
     hero_group.draw(screen)
     levels_group.draw(screen)
     bullets_group.draw(screen)
+    health_monsters_group.draw(screen)
     monsters_group.draw(screen)
     bullets_group.update()
     monsters_group.update()

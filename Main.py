@@ -6,8 +6,11 @@ pygame.init()
 SIZE = [600, 400]
 screen = pygame.display.set_mode(SIZE)
 BLACK = pygame.Color('black')
+
 bullets_sound = pygame.mixer.Sound('data/bullet.wav')
 monster_roar_sound = pygame.mixer.Sound('data/dragons_roar.wav')
+monster_hero_boom_sound = pygame.mixer.Sound('data/boom.wav')
+
 screen.fill(BLACK)
 
 hero_group = pygame.sprite.Group()
@@ -135,7 +138,8 @@ class Hero(pygame.sprite.Sprite):
             level.rect.y += y
         if len(monsters_group) > 0 and pygame.sprite.collide_mask(self, dragon):
             self.health -= 1
-            #Если игрок подходит слева к монстру, то его нужно отбросить ближе к старту уровня. Если справа, то дальше от старта.
+            monster_hero_boom_sound.play()
+            # Если игрок подходит слева к монстру, то его нужно отбросить ближе к старту уровня. Если справа, то дальше от старта.
             if hero_direction == 'right':
                 level.rect.x -= 100
                 dragon.rect.x += 100
@@ -304,9 +308,11 @@ start_screen_show = True
 x, y = 0, 0
 dy = 0
 hero_direction = 'right'
-#Даёт игроку возможность перепрыгнуть через монстра
+# Даёт игроку возможность перепрыгнуть через монстра
 previous_button = None
 hero_health = hero.health
+
+background_image = load_image('country_field.png')
 
 while running:
     if start_screen_show:
@@ -319,23 +325,30 @@ while running:
         if event.type == pygame.QUIT:
             running = False
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_RIGHT:
+            if pygame.key.get_pressed()[pygame.K_UP] and pygame.key.get_pressed()[pygame.K_RIGHT]:
                 hero_direction = 'right'
-                x, y = (10, 0) if previous_button else (5, 0)
+                x, y = (20, 0)
                 x_d, y_d = hero.rect.x, hero.rect.y
                 hero_group = pygame.sprite.Group()
                 hero = Hero(load_image("hero.png"), 6, 1, x_d, y_d, health=hero.health)
-                previous_button = 0
+            if pygame.key.get_pressed()[pygame.K_UP] and pygame.key.get_pressed()[pygame.K_LEFT]:
+                hero_direction = 'left'
+                x, y = (-20, 0)
+                x_d, y_d = hero.rect.x, hero.rect.y
+                hero_group = pygame.sprite.Group()
+                hero = Hero(load_image("hero_left.png"), 6, 1, x_d, y_d, health=hero.health)
+            if event.key == pygame.K_RIGHT:
+                hero_direction = 'right'
+                x, y = (10, 0)
+                x_d, y_d = hero.rect.x, hero.rect.y
+                hero_group = pygame.sprite.Group()
+                hero = Hero(load_image("hero.png"), 6, 1, x_d, y_d, health=hero.health)
             if event.key == pygame.K_LEFT:
                 hero_direction = 'left'
                 x_d, y_d = hero.rect.x, hero.rect.y
                 hero_group = pygame.sprite.Group()
                 hero = Hero(load_image("hero_left.png"), 6, 1, x_d, y_d, health=hero.health)
-                if dy == 5:
-                    x, y = (-6, 0) if previous_button else (-3, 0)
-                else:
-                    x, y = (-10, 0) if previous_button else (-5, 0)
-                previous_button = 0
+                x, y = (-10, 0)
             if event.key == pygame.K_UP:
                 if dy != 5:
                     hero.rect.y -= 100
@@ -345,14 +358,23 @@ while running:
                 bullets_sound.play()
                 Bullet(hero.rect.x, hero.rect.y, 'bullet.png')
                 previous_button = 0
+            # Перезагрузка уровня при нажатии Ctrl + R
+            if pygame.key.get_pressed()[pygame.K_LCTRL] and pygame.key.get_pressed()[pygame.K_r]:
+                hero.kill()
+                hero_group = pygame.sprite.Group()
+                hero = Hero(load_image("hero.png"), 6, 1, 30, start_y)
+                hero_direction = 'right'
+                level.rect.x = 0
+                dragon = Monster(load_image("dragon.png"), 8, 2, 400, 270)
+                dragon_health = Health_monster(dragon)
         if event.type == pygame.KEYUP:
             if event.key in (pygame.K_RIGHT, pygame.K_LEFT, pygame.K_UP, pygame.K_DOWN):
                 x, y = 0, 0
 
-    if x != 0 and y == 0:
+    if x != 0:
         hero.update(x, y)
 
-    #Если герой в воздухе, то его нужно возвращать на землю
+    # Если герой в воздухе, то его нужно возвращать на землю
     if dy != 0:
         if start_y > hero.rect.y:
             hero.rect.y += dy
@@ -360,10 +382,11 @@ while running:
             dy = 0
 
     screen.fill(BLACK)
+    screen.blit(background_image, (0, 0))
     for i in range(hero.health):
         screen.blit(health_image, (420 + i * 35, 10))
 
-    #Если xp героя меньше, чем на предудущем шаге
+    # Если xp героя меньше, чем на предудущем шаге
     if hero_health != hero.health:
         screen.blit(boom_image, (dragon.rect.x - 50, dragon.rect.y - 50))
         hero_health = hero.health

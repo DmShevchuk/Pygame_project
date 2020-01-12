@@ -4,6 +4,7 @@ import os, sys
 
 pygame.init()
 SIZE = [600, 400]
+# основное окно
 screen = pygame.display.set_mode(SIZE)
 BLACK = pygame.Color('black')
 
@@ -13,6 +14,7 @@ monster_hero_boom_sound = pygame.mixer.Sound('data/boom.wav')
 
 screen.fill(BLACK)
 
+coin_group = pygame.sprite.Group()
 hero_group = pygame.sprite.Group()
 levels_group = pygame.sprite.Group()
 bullets_group = pygame.sprite.Group()
@@ -102,6 +104,37 @@ def create_particles(position):
     numbers = range(-5, 6)
     for _ in range(particle_count):
         Particle(position, random.choice(numbers), random.choice(numbers))
+
+
+class Hero_traning(pygame.sprite.Sprite):
+    def __init__(self, sheet, columns, rows, x, y, health=5):
+        super().__init__(hero_group)
+        self.frames = []
+        self.cut_sheet(sheet, columns, rows)
+        self.cur_frame = 0
+        self.image = self.frames[self.cur_frame]
+        self.rect = self.rect.move(x, y)
+        self.health = health
+        self.collide_with_monster_counter = 0
+
+    def cut_sheet(self, sheet, columns, rows):
+        self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
+                                sheet.get_height() // rows)
+        for j in range(rows):
+            for i in range(columns):
+                frame_location = (self.rect.w * i, self.rect.h * j)
+                self.frames.append(sheet.subsurface(pygame.Rect(
+                    frame_location, self.rect.size)))
+
+    def update(self, x, y):
+        self.cur_frame = (self.cur_frame + 1) % len(self.frames)
+        self.image = self.frames[self.cur_frame]
+        if self.rect.x > 320:
+            self.rect.x -= 15
+        if self.rect.x < 10:
+            self.rect.x += 15
+        self.rect.x += x
+        self.rect.y += y
 
 
 class Hero(pygame.sprite.Sprite):
@@ -194,6 +227,29 @@ class Monster(pygame.sprite.Sprite):
         self.image = self.frames[self.cur_frame]
 
 
+class Money(pygame.sprite.Sprite):
+    def __init__(self, sheet, columns, rows, x, y):
+        super().__init__(coin_group)
+        self.frames = []
+        self.cut_sheet(sheet, columns, rows)
+        self.cur_frame = 0
+        self.image = self.frames[self.cur_frame]
+        self.rect = self.rect.move(x, y)
+
+    def cut_sheet(self, sheet, columns, rows):
+        self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
+                                sheet.get_height() // rows)
+        for j in range(rows):
+            for i in range(columns):
+                frame_location = (self.rect.w * i, self.rect.h * j)
+                self.frames.append(sheet.subsurface(pygame.Rect(
+                    frame_location, self.rect.size)))
+
+    def update(self):
+        self.cur_frame = (self.cur_frame + 1) % len(self.frames)
+        self.image = self.frames[self.cur_frame]
+
+
 class Health_monster(pygame.sprite.Sprite):
     def __init__(self, monster):
         super().__init__(health_monsters_group)
@@ -243,6 +299,154 @@ class Bullet(pygame.sprite.Sprite):
             if dragon.health == 0:
                 dragon.kill()
                 dragon_health.kill()
+
+
+def training():
+    # этап №1 прыжок
+    hero_traning = Hero_traning(load_image("hero.png"), 6, 1, 100, start_y)
+    level_traning = Level('first')
+    training_sprite = pygame.sprite.Group()
+    wizard = pygame.sprite.Sprite()
+    wizard_image = load_image("Волшебник.png")
+    wizard = pygame.sprite.Sprite()
+    wizard.image = wizard_image
+    wizard.rect = wizard.image.get_rect()
+    training_sprite.add(hero_traning)
+    dy_traning = 0
+    training_sprite.add(level_traning)
+    training_sprite.add(wizard)
+    wizard.rect.topleft = 420, start_y - 5
+    training_sprite.add(wizard)
+    font = pygame.font.Font(None, 20)
+    text = font.render('Приветствую тебя странник', 1, (255, 255, 255))
+    text2 = font.render('Я волшебник Мерлин', 1, (255, 255, 255))
+    text3 = font.render('И я помогу выжить в этом мире', 1, (255, 255, 255))
+    text4 = font.render('Для начала подпрыгни', 1, (255, 255, 255))
+    text5 = font.render('(используй стрелочку вверх)', 1, (255, 255, 255))
+    run = True
+    jump = False
+    while run:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                hero_traning.kill()
+                run = False
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_UP:
+                    jump = True
+                    if dy_traning != 5:
+                        hero_traning.rect.y -= 100
+                        dy_traning = 5
+        if dy_traning != 0:
+            if start_y > hero_traning.rect.y:
+                hero_traning.rect.y += dy_traning
+            else:
+                dy_traning = 0
+                if jump:
+                    run = False
+        screen.fill(BLACK)
+        training_sprite.draw(screen)
+        screen.blit(text, (360, 180))
+        screen.blit(text2, (380, 195))
+        screen.blit(text3, (350, 210))
+        screen.blit(text4, (370, 225))
+        screen.blit(text5, (355, 240))
+        clock.tick(FPS)
+        pygame.display.flip()
+    # этап №2 движения влево и вправо
+    run = True
+    text = font.render('Молодец!', 1, (255, 255, 255))
+    text2 = font.render('А теперь собери монетки', 1, (255, 255, 255))
+    text3 = font.render('(используй стрелочки влево и вправо)', 1, (255, 255, 255))
+    coin_traning = Money(load_image("coin.png"), 6, 1, 300, level_traning.rect.y - 30)
+    coin1 = True
+    coin2 = False
+    training_sprite.add(coin_traning)
+    hero_direction_training = 'right'
+    x, y = 0, 0
+    while run:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                hero_traning.kill()
+                run = False
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RIGHT:
+                    hero_direction_training = 'right'
+                    x, y = (10, 0)
+                    x_d, y_d = hero_traning.rect.x, hero_traning.rect.y
+                    hero_traning.kill()
+                    hero_traning = Hero_traning(load_image("hero.png"), 6, 1, x_d, y_d, health=hero_traning.health)
+                    training_sprite.add(hero_traning)
+                if event.key == pygame.K_LEFT:
+                    hero_direction_training = 'left'
+                    x_d, y_d = hero_traning.rect.x, hero_traning.rect.y
+                    hero_traning.kill()
+                    hero_traning = Hero_traning(load_image("hero_left.png"), 6, 1, x_d, y_d, health=hero_traning.health)
+                    training_sprite.add(hero_traning)
+                    x, y = (-10, 0)
+                if event.key == pygame.K_UP:
+                    if dy_traning != 5:
+                        hero_traning.rect.y -= 100
+                        dy_traning = 5
+            if event.type == pygame.KEYUP:
+                if event.key in (pygame.K_RIGHT, pygame.K_LEFT, pygame.K_UP, pygame.K_DOWN):
+                    x, y = 0, 0
+        if dy_traning != 0:
+            if start_y > hero_traning.rect.y:
+                hero_traning.rect.y += dy_traning
+            else:
+                dy_traning = 0
+        if pygame.sprite.collide_mask(coin_traning, hero_traning):
+            coin_traning.kill()
+            if coin1:
+                coin_traning1 = Money(load_image("coin.png"), 6, 1, 30, level_traning.rect.y - 30)
+                training_sprite.add(coin_traning1)
+                coin1 = False
+                coin2 = True
+        if coin2:
+            if pygame.sprite.collide_mask(coin_traning1, hero_traning):
+                coin_traning1.kill()
+                run = False
+        if x != 0:
+            hero_traning.update(x, y)
+        coin_group.update()
+        screen.fill(BLACK)
+        training_sprite.draw(screen)
+        screen.blit(text, (435, 210))
+        screen.blit(text2, (375, 225))
+        screen.blit(text3, (335, 240))
+        clock.tick(FPS)
+        pygame.display.flip()
+    # этап №3 Жизни и выстрел
+    hero_traning.kill()
+    hero_traning = Hero_traning(load_image("hero.png"), 6, 1, 100, start_y)
+    training_sprite.add(hero_traning)
+    text = font.render('С передвижением ты разобрался', 1, (255, 255, 255))
+    text2 = font.render('Осталось только следить за жизнями', 1, (255, 255, 255))
+    text3 = font.render('И убивать монстров (пробел)', 1, (255, 255, 255))
+    text4 = font.render('А на этом наше обучение закончено', 1, (255, 255, 255))
+    text5 = font.render('Желаю удачи в путешествии', 1, (255, 255, 255))
+    run = True
+    while run:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                hero_traning.kill()
+                run = False
+        if dy_traning != 0:
+            if start_y > hero_traning.rect.y:
+                hero_traning.rect.y += dy_traning
+            else:
+                dy_traning = 0
+        screen.fill(BLACK)
+        training_sprite.draw(screen)
+        for i in range(hero_traning.health):
+            screen.blit(health_image, (420 + i * 35, 10))
+        screen.blit(text, (340, 180))
+        screen.blit(text2, (325, 195))
+        screen.blit(text3, (350, 210))
+        screen.blit(text4, (325, 225))
+        screen.blit(text5, (350, 240))
+        clock.tick(FPS)
+        pygame.display.flip()
 
 
 class Bird(pygame.sprite.Sprite):
@@ -361,12 +565,16 @@ while running:
             # Перезагрузка уровня при нажатии Ctrl + R
             if pygame.key.get_pressed()[pygame.K_LCTRL] and pygame.key.get_pressed()[pygame.K_r]:
                 hero.kill()
+                dragon.kill()
+                dragon_health.kill()
                 hero_group = pygame.sprite.Group()
                 hero = Hero(load_image("hero.png"), 6, 1, 30, start_y)
                 hero_direction = 'right'
                 level.rect.x = 0
                 dragon = Monster(load_image("dragon.png"), 8, 2, 400, 270)
                 dragon_health = Health_monster(dragon)
+            if event.key == 286:
+                training()
         if event.type == pygame.KEYUP:
             if event.key in (pygame.K_RIGHT, pygame.K_LEFT, pygame.K_UP, pygame.K_DOWN):
                 x, y = 0, 0

@@ -637,7 +637,7 @@ hero_direction = 'right'
 hero_health = hero.health
 hero_score = hero.score
 font_for_score = pygame.font.Font(None, 25)
-
+air = False
 background_image = load_image('country_field.png')
 
 while running:
@@ -687,12 +687,12 @@ while running:
                 hero_group = pygame.sprite.Group()
                 hero = Hero(load_image("hero_left.png"), 6, 1, x_d, y_d, health=hero.health, score=hero.score)
                 x, y = (-10, 0)
-                print(level.rect.x)
+
             if event.key == pygame.K_UP:
                 collide_flag = True
-                if dy != 5:
+                if not air:
                     hero.rect.y -= 100
-                    dy = 5
+                dy = 5
 
             if event.key == pygame.K_SPACE:
                 bullets_sound.play()
@@ -715,12 +715,19 @@ while running:
     if x != 0:
         hero.update(x, y)
 
+    # Проверка на пересечения героя и платформ
+    block_hero = False
+    hero_island = False
+    for i in islands_group:
+        if pygame.sprite.collide_mask(hero, i) and (hero.rect.y + hero.rect.height) - i.rect.y < 9:
+            hero_island = True
+
     # Если герой в воздухе, то его нужно возвращать на землю
-    if dy != 0:
-        if start_y > hero.rect.y:
-            hero.rect.y += dy
-        else:
-            dy = 0
+    if start_y > hero.rect.y and not hero_island:
+        hero.rect.y += dy
+        air = True
+    else:
+        air = False
 
     screen.fill(BLACK)
     screen.blit(background_image, (0, 0))

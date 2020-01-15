@@ -385,7 +385,6 @@ def training():
     while run:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                hero_traning.kill()
                 run = False
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_UP:
@@ -423,7 +422,6 @@ def training():
     while run:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                hero_traning.kill()
                 run = False
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RIGHT:
@@ -473,38 +471,72 @@ def training():
         screen.blit(text3, (335, 240))
         clock.tick(FPS)
         pygame.display.flip()
-    # этап №3 Жизни и выстрел
+    # этап №3 Выстрел
     hero_traning.kill()
     hero_traning = Hero_traning(load_image("hero.png"), 6, 1, 100, start_y)
     training_sprite.add(hero_traning)
+    crocodile_image = load_image("Крокодил.png")
+    crocodile = pygame.sprite.Sprite()
+    crocodile.image = crocodile_image
+    crocodile.rect = crocodile.image.get_rect()
+    training_sprite.add(crocodile)
+    crocodile.rect.topleft = 285, start_y + 10
     text = font.render('Молодец!', 1, WHITE)
-    text2 = font.render('Следи за жизнями, получай очки,', 1, WHITE)
-    text3 = font.render('Убивай монстров (пробел).', 1, WHITE)
-    text4 = font.render('Желаю удачи в путешествии!', 1, WHITE)
-    text5 = font.render('Справка - CTRL + H', 1, WHITE)
-    text6 = font.render('(Нажми пробел для начала игры)', 1, WHITE)
+    text2 = font.render('А тепепрь держи пистолет, он тебе поможет', 1, WHITE)
+    text3 = font.render('На твоём пути будут встречаться страшные монстры.', 1, WHITE)
+    text4 = font.render('И тебе предётся использовать оружие (пробел)', 1, WHITE)
+    text5 = font.render('Попробуй выстрелить в этого крокодила.', 1, WHITE)
     run = True
     while run:
         for event in pygame.event.get():
-            if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE):
-                hero_traning.kill()
+            if event.type == pygame.QUIT:
                 run = False
-                level_traning.kill()
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                bullets_sound.play()
+                bullet_training = Bullet(hero_traning.rect.x, hero_traning.rect.y, 'bullet.png')
+                training_sprite.add(bullet_training)
         if dy_traning != 0:
             if start_y > hero_traning.rect.y:
                 hero_traning.rect.y += dy_traning
             else:
                 dy_traning = 0
+        for i in bullets_group:
+            if pygame.sprite.collide_mask(crocodile, i):
+                bullet_training.kill()
+                crocodile.kill()
+                run = False
         screen.fill(BLACK)
         training_sprite.draw(screen)
-        for i in range(hero_traning.health):
-            screen.blit(health_image, (420 + i * 35, 10))
-        screen.blit(text, (380, 150))
-        screen.blit(text2, (325, 165))
-        screen.blit(text3, (350, 180))
-        screen.blit(text4, (320, 195))
-        screen.blit(text5, (350, 210))
-        screen.blit(text6, (320, 225))
+        bullets_group.update()
+        screen.blit(text, (382, 165))
+        screen.blit(text2, (262, 180))
+        screen.blit(text3, (242, 195))
+        screen.blit(text4, (252, 210))
+        screen.blit(text5, (272, 225))
+        clock.tick(FPS)
+        pygame.display.flip()
+    # этап №4 Конец
+    text = font.render('А ты, хорош!', 1, (255, 255, 255))
+    text2 = font.render('Ты сможешь выжить в этом мире!', 1, (255, 255, 255))
+    text3 = font.render('Если тебе понадобится помощь,', 1, (255, 255, 255))
+    text4 = font.render('То можешь открыть подсказку (CTRL + H)', 1, (255, 255, 255))
+    text5 = font.render('(Чтобы покинуть обучение нажмите пробел)', 1, (255, 255, 255))
+    run = True
+    while run:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE):
+                hero_traning.kill()
+                level_traning.kill()
+                wizard.kill()
+                crocodile.kill()
+                run = False
+        screen.fill(BLACK)
+        training_sprite.draw(screen)
+        screen.blit(text, (390, 180))
+        screen.blit(text2, (325, 195))
+        screen.blit(text3, (330, 210))
+        screen.blit(text4, (300, 225))
+        screen.blit(text5, (290, 240))
         clock.tick(FPS)
         pygame.display.flip()
 

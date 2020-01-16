@@ -195,11 +195,6 @@ class Hero(pygame.sprite.Sprite):
                 level.rect.x += x
                 level.rect.y += y
 
-        if not pygame.sprite.spritecollide(self, levels_group, False):
-            for islands in islands_group:
-                if (not pygame.sprite.collide_mask(self, islands) and self.rect.y == start_y) or self.rect.y == start_y:
-                    restart()
-
         if len(monsters_group) > 0 and pygame.sprite.spritecollide(self, monsters_group, False):
             for dragon in monsters_group:
                 if pygame.sprite.collide_mask(self, dragon):
@@ -230,6 +225,7 @@ class Hero(pygame.sprite.Sprite):
                     Health_monster(dragon)
 
                     if self.health < 0:
+                        the_end()
                         restart()
 
         if pygame.sprite.spritecollide(self, house_group, False):
@@ -377,7 +373,7 @@ def training():
     WHITE = (255, 255, 255)
     # этап №1 прыжок
     hero_traning = Hero_traning(load_image("hero.png"), 6, 1, 100, start_y)
-    level_traning = Level('first')
+    level_traning = Level('first', 0)
     training_sprite = pygame.sprite.Group()
     wizard = pygame.sprite.Sprite()
     wizard_image = load_image("Волшебник.png")
@@ -388,7 +384,7 @@ def training():
     dy_traning = 0
     training_sprite.add(level_traning)
     training_sprite.add(wizard)
-    wizard.rect.topleft = 420, start_y - 5
+    wizard.rect.topleft = 420, start_y - 10
     training_sprite.add(wizard)
     font = pygame.font.Font(None, 20)
     text = font.render('Приветствую тебя, странник.', 1, (255, 255, 255))
@@ -496,7 +492,7 @@ def training():
     crocodile.image = crocodile_image
     crocodile.rect = crocodile.image.get_rect()
     training_sprite.add(crocodile)
-    crocodile.rect.topleft = 285, start_y + 10
+    crocodile.rect.topleft = 285, start_y + 5
     text = font.render('Молодец!', 1, WHITE)
     text2 = font.render('А тепепрь держи пистолет, он тебе поможет', 1, WHITE)
     text3 = font.render('На твоём пути будут встречаться страшные монстры.', 1, WHITE)
@@ -557,6 +553,19 @@ def training():
         pygame.display.flip()
 
 
+def the_end():
+    run = True
+    intro_end = load_image('game_over.jpg')
+    screen.blit(intro_end, (0, 0))
+    pygame.display.flip()
+    while run:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
+            if event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
+                run = False
+
+
 def training_at_start():
     font = pygame.font.Font(None, 50)
     font1 = pygame.font.Font(None, 25)
@@ -583,7 +592,8 @@ def training_at_start():
 
 def restart():
     global hero_group, coin_group, islands_group, hero, hero_direction, \
-        levels_group, health_monsters_group, monsters_group
+        levels_group, health_monsters_group, monsters_group, x, y
+    x, y = 0, 0
     for hero in hero_group:
         hero.kill()
 
@@ -681,7 +691,7 @@ hero = Hero(load_image('hero.png'), 6, 1, 100, 300)
 health_image = load_image('health.png', color_key=-1)
 boom_image = load_image('boom.png', color_key=-1)
 info_image = load_image('info.png')
-start_y = level.rect.y - level.rect.height - 15
+start_y = level.rect.y - level.rect.height - 10
 house = House(4200, 70)
 
 level_coords = [0, 2500]
@@ -713,6 +723,7 @@ background_image = load_image('country_field.png')
 intro_image = load_image('intro.png')
 gameover = False
 font_for_intro = pygame.font.Font(None, 50)
+dy = 5
 
 while running:
     if start_screen_show:
@@ -721,9 +732,7 @@ while running:
         start_screen_show = False
         hero_group = pygame.sprite.Group()
         coin_group = pygame.sprite.Group()
-
         levels_group = pygame.sprite.Group()
-
         for i in range(len(level_coords)):
             Level('first', level_coords[i])
 
@@ -738,7 +747,6 @@ while running:
             Island(island_coords[i][0], island_coords[i][1], island_coords[i][2])
 
         hero = Hero(load_image("hero.png"), 6, 1, 100, start_y)
-
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
@@ -775,7 +783,6 @@ while running:
                 collide_flag = True
                 if not air:
                     hero.rect.y -= 100
-                dy = 5
 
             if event.key == pygame.K_SPACE:
                 bullets_sound.play()
@@ -805,12 +812,22 @@ while running:
         if pygame.sprite.collide_mask(hero, i) and (hero.rect.y + hero.rect.height) - i.rect.y < 9:
             hero_island = True
 
+    # Проверка на пересечения героя и земли
+    hero_level = False
+    for i in levels_group:
+        if pygame.sprite.collide_mask(hero, i) and (hero.rect.y + hero.rect.height) - i.rect.y < 9:
+            hero_level = True
+
     # Если герой в воздухе, то его нужно возвращать на землю
-    if start_y > hero.rect.y and not hero_island:
+    if not hero_level and not hero_island:
         hero.rect.y += dy
         air = True
     else:
         air = False
+    # Если герой за пределами экрана происходит рестарт уровня
+    if hero.rect.y > 420:
+        the_end()
+        restart()
 
     screen.fill(BLACK)
     screen.blit(background_image, (0, 0))
@@ -845,7 +862,7 @@ while running:
     # Если пройден уровень
     if gameover:
         screen.blit(intro_image, (0, 0))
-        text = font_for_intro.render('Ваши очки' + ' -' + str(hero.score), 1, (255, 255, 255))
+        text = font_for_intro.render('Ваши очки' + ' - ' + str(hero.score), 1, (255, 255, 255))
         screen.blit(text, (50, 200))
 
     # Обновление групп спрайтов

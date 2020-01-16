@@ -26,6 +26,7 @@ monsters_group = pygame.sprite.Group()
 health_monsters_group = pygame.sprite.Group()
 coin_group = pygame.sprite.Group()
 islands_group = pygame.sprite.Group()
+house_group = pygame.sprite.Group()
 
 
 # Загрузка всех изображений для отражения на экране
@@ -164,68 +165,75 @@ class Hero(pygame.sprite.Sprite):
                     frame_location, self.rect.size)))
 
     def update(self, x, y, check_collide=True):
-        level.rect.x -= x
-        level.rect.y -= y
-        if not pygame.sprite.collide_mask(self, level) or not check_collide:
+        global health_monsters_group, gameover
+
+        for level in levels_group:
+            level.rect.x -= x
+            level.rect.y -= y
+
+        if pygame.sprite.spritecollide(self, levels_group, False) or check_collide:
             self.cur_frame = (self.cur_frame + 1) % len(self.frames)
             self.image = self.frames[self.cur_frame]
             self.mask = pygame.mask.from_surface(self.image)
-            dragon.rect.x -= x
-            dragon_health.update(dragon)
+
+            health_monsters_group = pygame.sprite.Group()
+
+            for dragon in monsters_group:
+                dragon.rect.x -= x
+                Health_monster(dragon)
+
             for coin in coin_group:
                 coin.rect.x -= x
+
             for island in islands_group:
                 island.rect.x -= x
+
+            house.rect.x -= x
+
         else:
-            level.rect.x += x
-            level.rect.y += y
-        if len(monsters_group) > 0 and pygame.sprite.collide_mask(self, dragon):
-            self.health -= 1
-            monster_hero_boom_sound.play()
-            # Если игрок подходит слева к монстру, то его нужно отбросить ближе к старту уровня.
-            # Если справа, то дальше от старта.
-            if hero_direction == 'right':
-                level.rect.x -= 100
-                dragon.rect.x += 100
-                for coin in coin_group:
-                    coin.rect.x += 100
+            for level in levels_group:
+                level.rect.x += x
+                level.rect.y += y
 
-                for island in islands_group:
-                    island.rect.x += 100
-            else:
-                level.rect.x -= 100
-                dragon.rect.x -= 100
-                for coin in coin_group:
-                    coin.rect.x -= 100
+        if not pygame.sprite.spritecollide(self, levels_group, False):
+            for islands in islands_group:
+                if (not pygame.sprite.collide_mask(self, islands) and self.rect.y == start_y) or self.rect.y == start_y:
+                    restart()
 
-                for island in islands_group:
-                    island.rect.x -= 100
+        if len(monsters_group) > 0 and pygame.sprite.spritecollide(self, monsters_group, False):
+            for dragon in monsters_group:
+                if pygame.sprite.collide_mask(self, dragon):
+                    self.health -= 1
+                    monster_hero_boom_sound.play()
+                    # Если игрок подходит слева к монстру, то его нужно отбросить ближе к старту уровня.
+                    # Если справа, то дальше от старта.
+                    if hero_direction == 'right':
+                        for level in levels_group:
+                            level.rect.x += 100
+                        for dragon in monsters_group:
+                            dragon.rect.x += 100
+                        for coin in coin_group:
+                            coin.rect.x += 100
+                        for island in islands_group:
+                            island.rect.x += 100
+                        house.rect.x -= 100
+                    else:
+                        for level in levels_group:
+                            level.rect.x -= 100
+                        for dragon in monsters_group:
+                            dragon.rect.x -= 100
+                        for coin in coin_group:
+                            coin.rect.x -= 100
+                        for island in islands_group:
+                            island.rect.x -= 100
+                        house.rect.x += 100
+                    Health_monster(dragon)
 
-            dragon_health.update(dragon)
+                    if self.health < 0:
+                        restart()
 
-            if self.health < 0:
-                restart()
-                # global hero_group, hero
-                # self.kill()
-                # hero_group = pygame.sprite.Group()
-                # hero = Hero(load_image("hero.png"), 6, 1, 30, start_y)
-                # level.rect.x = 0
-                # dragon.rect.x = 400
-                # dragon.rect.y = 270
-                # dragon.health = 5
-                # dragon_health.update(dragon)
-                #
-                # for coin in coin_group:
-                #     coin.kill()
-                #
-                # for island in islands_group:
-                #     island.kill()
-                #
-                # for i in range(len(coin_coords)):
-                #     Money(load_image('coin.png'), 6, 1, coin_coords[i][0], coin_coords[i][1])
-                #
-                # for i in range(len(island_coords)):
-                #     Island(island_coords[i][0], island_coords[i][1], island_coords[i][2])
+        if pygame.sprite.spritecollide(self, house_group, False):
+            gameover = True
 
         for coin in coin_group:
             if pygame.sprite.collide_mask(self, coin):
@@ -236,11 +244,12 @@ class Hero(pygame.sprite.Sprite):
 class Level(pygame.sprite.Sprite):
     levels_image = {'first': load_image('level1.png')}
 
-    def __init__(self, level):
+    def __init__(self, level, x):
         super().__init__(levels_group)
         self.image = Level.levels_image[level]
         self.rect = self.image.get_rect()
         self.rect.bottom = SIZE[1]
+        self.rect.x = x
         self.mask = pygame.mask.from_surface(self.image)
 
 
@@ -312,6 +321,7 @@ class Health_monster(pygame.sprite.Sprite):
         self.rect.x = monster.rect.x + 18
         self.rect.y = monster.rect.y - 10
         self.heatlh = monster.health
+        self.update(monster)
 
     def update(self, monster):
         self.rect.x = monster.rect.x + 18
@@ -336,6 +346,7 @@ class Bullet(pygame.sprite.Sprite):
         self.rect.y = y + hero.rect.height // 3
 
     def update(self, x=15, y=0):
+        global health_monsters_group
         if self.direction == 'right':
             self.rect.x += x
         else:
@@ -343,15 +354,20 @@ class Bullet(pygame.sprite.Sprite):
         self.rect.y += y
         if not self.rect.colliderect(Bullet.screen_rect):
             self.kill()
-        if len(monsters_group) > 0 and pygame.sprite.collide_mask(self, dragon):
-            self.kill()
-            monster_roar_sound.play()
-            dragon.health -= 1
-            dragon_health.update(dragon)
-            if dragon.health == 0:
-                dragon.kill()
-                dragon_health.kill()
-                hero.score += 50
+        if len(monsters_group) > 0:
+            health_monsters_group = pygame.sprite.Group()
+            for dragon in monsters_group:
+                if pygame.sprite.collide_mask(self, dragon):
+                    self.kill()
+                    monster_roar_sound.play()
+                    dragon.health -= 1
+                    if dragon.health == 0:
+                        dragon.kill()
+                        # dragon_health.kill()
+                        hero.score += 50
+
+                if dragon.health != 0:
+                    Health_monster(dragon)
 
         if pygame.sprite.spritecollide(self, islands_group, False):
             self.kill()
@@ -567,7 +583,7 @@ def training_at_start():
 
 def restart():
     global hero_group, coin_group, islands_group, hero, hero_direction, \
-        dragon_health, health_monsters_group, monsters_group, dragon
+        levels_group, health_monsters_group, monsters_group
     for hero in hero_group:
         hero.kill()
 
@@ -577,6 +593,7 @@ def restart():
     for dragon_health in health_monsters_group:
         dragon_health.kill()
 
+    levels_group = pygame.sprite.Group()
     hero_group = pygame.sprite.Group()
     coin_group = pygame.sprite.Group()
     islands_group = pygame.sprite.Group()
@@ -584,14 +601,21 @@ def restart():
     hero = Hero(load_image("hero.png"), 6, 1, 30, start_y)
     hero_direction = 'right'
     level.rect.x = 0
-    dragon = Monster(load_image("dragon.png"), 8, 2, 400, 270)
-    dragon_health = Health_monster(dragon)
+
+    for i in range(len(level_coords)):
+        Level('first', level_coords[i])
+
+    for i in range(len(dragon_coords)):
+        monster = Monster(load_image('dragon.png'), 8, 2, dragon_coords[i][0], dragon_coords[i][1])
+        Health_monster(monster)
 
     for i in range(len(coin_coords)):
         Money(load_image('coin.png'), 6, 1, coin_coords[i][0], coin_coords[i][1])
 
     for i in range(len(island_coords)):
         Island(island_coords[i][0], island_coords[i][1], island_coords[i][2])
+
+    house.rect.x = 4200
 
 
 class Bird(pygame.sprite.Sprite):
@@ -643,20 +667,35 @@ class Particle(pygame.sprite.Sprite):
             self.kill()
 
 
-level = Level('first')
+class House(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        super().__init__(house_group)
+        self.image = load_image('house.png', color_key=-1)
+        self.rect = self.image.get_rect()
+        self.rect.x, self.rect.y = x, y
+        self.mask = pygame.mask.from_surface(self.image)
+
+
+level = Level('first', 0)
 hero = Hero(load_image('hero.png'), 6, 1, 100, 300)
-dragon = Monster(load_image('dragon.png'), 8, 2, 400, 270)
-dragon_health = Health_monster(dragon)
 health_image = load_image('health.png', color_key=-1)
 boom_image = load_image('boom.png', color_key=-1)
 info_image = load_image('info.png')
 start_y = level.rect.y - level.rect.height - 15
+house = House(4200, 70)
+
+level_coords = [0, 2500]
+
+dragon_coords = [(400, 270), (700, 270), (1000, 270), (1300, 270), (1600, 270), (2250, 160), (2500, 270),
+                 (2800, 270), (3100, 270), (3400, 270), (3700, 270), (4000, 270)]
 
 # Добавлять координаты монет
-coin_coords = [(250, start_y), (350, start_y), (450, start_y)]
+coin_coords = [(250, start_y), (550, start_y), (850, start_y), (1150, start_y), (1450, start_y),
+               (2150, 240), (2350, 210), (2650, start_y), (2950, start_y), (3250, start_y), (3550, start_y),
+               (3850, start_y)]
 
 # Добавлять координаты и тип картинки островков
-island_coords = [('classic_island', 200, 280), ('classic_island', 500, 230)]
+island_coords = [('classic_island', 2150, 280), ('classic_island', 2250, 230), ('classic_island', 2350, 250)]
 
 clock = pygame.time.Clock()
 FPS = 50
@@ -671,6 +710,9 @@ hero_score = hero.score
 font_for_score = pygame.font.Font(None, 25)
 air = False
 background_image = load_image('country_field.png')
+intro_image = load_image('intro.png')
+gameover = False
+font_for_intro = pygame.font.Font(None, 50)
 
 while running:
     if start_screen_show:
@@ -679,6 +721,15 @@ while running:
         start_screen_show = False
         hero_group = pygame.sprite.Group()
         coin_group = pygame.sprite.Group()
+
+        levels_group = pygame.sprite.Group()
+
+        for i in range(len(level_coords)):
+            Level('first', level_coords[i])
+
+        for i in range(len(dragon_coords)):
+            monster = Monster(load_image('dragon.png'), 8, 2, dragon_coords[i][0], dragon_coords[i][1])
+            Health_monster(monster)
 
         for i in range(len(coin_coords)):
             Money(load_image('coin.png'), 6, 1, coin_coords[i][0], coin_coords[i][1])
@@ -774,7 +825,7 @@ while running:
 
     # Если xp героя меньше, чем на предудущем шаге
     if hero_health != hero.health:
-        screen.blit(boom_image, (dragon.rect.x - 50, dragon.rect.y - 50))
+        screen.blit(boom_image, (hero.rect.x + 50, hero.rect.y - 50))
         hero_health = hero.health
 
     # Отрисовка групп спрайтов
@@ -785,9 +836,17 @@ while running:
     monsters_group.draw(screen)
     coin_group.draw(screen)
     islands_group.draw(screen)
+    house_group.draw(screen)
 
+    # Если вызвана подсказка
     if show_info:
         screen.blit(info_image, (10, 100))
+
+    # Если пройден уровень
+    if gameover:
+        screen.blit(intro_image, (0, 0))
+        text = font_for_intro.render('Ваши очки' + ' -' + str(hero.score), 1, (255, 255, 255))
+        screen.blit(text, (50, 200))
 
     # Обновление групп спрайтов
     bullets_group.update()

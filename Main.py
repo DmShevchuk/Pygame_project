@@ -211,7 +211,7 @@ class Hero(pygame.sprite.Sprite):
                             coin.rect.x += 100
                         for island in islands_group:
                             island.rect.x += 100
-                        house.rect.x -= 100
+                        house.rect.x += 100
                     else:
                         for level in levels_group:
                             level.rect.x -= 100
@@ -221,7 +221,7 @@ class Hero(pygame.sprite.Sprite):
                             coin.rect.x -= 100
                         for island in islands_group:
                             island.rect.x -= 100
-                        house.rect.x += 100
+                        house.rect.x -= 100
                     Health_monster(dragon)
 
                     if self.health < 0:
@@ -790,6 +790,7 @@ while running:
 
             # Перезагрузка уровня при нажатии Ctrl + R
             if pygame.key.get_pressed()[pygame.K_LCTRL] and pygame.key.get_pressed()[pygame.K_r]:
+                gameover = False
                 restart()
 
             # Всплывающая подсказка
@@ -824,6 +825,7 @@ while running:
         air = True
     else:
         air = False
+
     # Если герой за пределами экрана происходит рестарт уровня
     if hero.rect.y > 420:
         the_end()

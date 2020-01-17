@@ -566,6 +566,19 @@ def the_end():
                 run = False
 
 
+def level_end():
+    run = True
+    screen.blit(intro_image, (0, 0))
+    text = font_for_intro.render('Ваши очки' + ' - ' + str(hero.score), 1, (255, 255, 255))
+    screen.blit(text, (50, 200))
+    pygame.display.flip()
+    while run:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
+            if event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
+                run = False
+
 def training_at_start():
     font = pygame.font.Font(None, 50)
     font1 = pygame.font.Font(None, 25)
@@ -592,7 +605,8 @@ def training_at_start():
 
 def restart():
     global hero_group, coin_group, islands_group, hero, hero_direction, \
-        levels_group, health_monsters_group, monsters_group, x, y
+        levels_group, health_monsters_group, monsters_group, x, y, gameover
+    gameover = False
     x, y = 0, 0
     for hero in hero_group:
         hero.kill()
@@ -861,9 +875,8 @@ while running:
 
     # Если пройден уровень
     if gameover:
-        screen.blit(intro_image, (0, 0))
-        text = font_for_intro.render('Ваши очки' + ' - ' + str(hero.score), 1, (255, 255, 255))
-        screen.blit(text, (50, 200))
+        level_end()
+        restart()
 
     # Обновление групп спрайтов
     bullets_group.update()
